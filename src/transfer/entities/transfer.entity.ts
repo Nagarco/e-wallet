@@ -9,6 +9,7 @@ import {
 } from 'typeorm';
 import { TransferStatus } from '../enums/transfer-status.enum.js';
 import { Account } from '../../account/entities/account.entity.js';
+import type { Relation } from 'typeorm';
 
 @Entity()
 export class Transfer {
@@ -45,12 +46,12 @@ export class Transfer {
     onDelete: 'RESTRICT',
   })
   @JoinColumn({ name: 'senderId' })
-  sender: Account;
+  sender: Relation<Account>;
 
   @ManyToOne(() => Account, (account) => account.incomingTransfers, {
     nullable: false,
     onDelete: 'RESTRICT',
   })
   @JoinColumn({ name: 'receiverId' })
-  receiver: Account;
+  receiver: Relation<Account>;
 }

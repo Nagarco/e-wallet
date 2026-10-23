@@ -6,6 +6,7 @@ import {
   PrimaryGeneratedColumn,
 } from 'typeorm';
 import { Transfer } from '../../transfer/entities/transfer.entity.js';
+import type { Relation } from 'typeorm';
 
 @Entity()
 export class Account {
@@ -25,8 +26,8 @@ export class Account {
   createdAt: Date;
 
   @OneToMany(() => Transfer, (transfer) => transfer.sender)
-  outgoingTransfers: Transfer[];
+  outgoingTransfers: Relation<Transfer[]>;
 
   @OneToMany(() => Transfer, (transfer) => transfer.receiver)
-  incomingTransfers: Transfer[];
+  incomingTransfers: Relation<Transfer[]>;
 }
