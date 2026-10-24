@@ -1,114 +1,115 @@
-<p align="center">
-  <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo-small.svg" width="120" alt="Nest Logo" /></a>
-</p>
+# 💳 E-Wallet Transaction Engine
 
-[circleci-image]: https://img.shields.io/circleci/build/github/nestjs/nest/master?token=abc123def456
-[circleci-url]: https://circleci.com/gh/nestjs/nest
+## 📌 Project Overview
 
-  <p align="center">A progressive <a href="http://nodejs.org" target="_blank">Node.js</a> framework for building efficient and scalable server-side applications.</p>
-    <p align="center">
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/v/@nestjs/core.svg" alt="NPM Version" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/l/@nestjs/core.svg" alt="Package License" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/dm/@nestjs/common.svg" alt="NPM Downloads" /></a>
-<a href="https://circleci.com/gh/nestjs/nest" target="_blank"><img src="https://img.shields.io/circleci/build/github/nestjs/nest/master" alt="CircleCI" /></a>
-<a href="https://discord.gg/G7Qnnhy" target="_blank"><img src="https://img.shields.io/badge/discord-online-brightgreen.svg" alt="Discord"/></a>
-<a href="https://opencollective.com/nest#backer" target="_blank"><img src="https://opencollective.com/nest/backers/badge.svg" alt="Backers on Open Collective" /></a>
-<a href="https://opencollective.com/nest#sponsor" target="_blank"><img src="https://opencollective.com/nest/sponsors/badge.svg" alt="Sponsors on Open Collective" /></a>
-  <a href="https://paypal.me/kamilmysliwiec" target="_blank"><img src="https://img.shields.io/badge/Donate-PayPal-ff3f59.svg" alt="Donate us"/></a>
-    <a href="https://opencollective.com/nest#sponsor"  target="_blank"><img src="https://img.shields.io/badge/Support%20us-Open%20Collective-41B883.svg" alt="Support us"></a>
-  <a href="https://twitter.com/nestframework" target="_blank"><img src="https://img.shields.io/twitter/follow/nestframework.svg?style=social&label=Follow" alt="Follow us on Twitter"></a>
-</p>
-  <!--[![Backers on Open Collective](https://opencollective.com/nest/backers/badge.svg)](https://opencollective.com/nest#backer)
-  [![Sponsors on Open Collective](https://opencollective.com/nest/sponsors/badge.svg)](https://opencollective.com/nest#sponsor)-->
+This project implements a core banking/wallet transaction engine. In financial systems, the primary engineering challenge is preventing race conditions, balance inconsistencies, and deadlocks when multiple concurrent transfers occur simultaneously.
 
-## Description
+This API handles account lifecycle, balance adjustments, and atomic fund transfers with transactional guarantees and pessimistic row-level locking.
 
-[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
+## 🚀 Key Features & Highlights
 
-## Project setup
+- **🔒 Atomic Transactions & ACID Compliance**: Transfers execute inside isolated database transactions (`DataSource.transaction`), guaranteeing that money is neither created nor lost if any step fails.
+- **🛡️ Deadlock Prevention & Concurrency Control**:
+  - Implements **pessimistic write locking** (`SELECT ... FOR UPDATE`) to prevent double-spending and dirty reads.
+  - Applies a **deterministic lock ordering algorithm** (sorting account IDs before acquiring locks) to mathematically eliminate circular wait conditions and deadlock risks across concurrent transfers.
+- **📊 Transfer State Tracking**: Full auditability with explicit state tracking (`Pending` ➔ `Fulfilled` / `Failed`).
+- **🛡️ Robust Input Validation & Sanitization**: Comprehensive payload validation using `class-validator` and `class-transformer` with strict whitelist checks.
+- **⚡ Paginated Audit History**: Efficient cursor/offset pagination for transaction records with eager/lazy relation metadata.
+- **🏗️ Database Migrations**: Reproducible database schema lifecycle management via TypeORM migrations.
 
+---
+
+## 🛠️ Tech Stack & Architecture
+
+- **Runtime & Language**: Node.js (ES Modules), TypeScript
+- **Framework**: [NestJS](https://nestjs.com/) (Modular Architecture, Dependency Injection)
+- **Database**: PostgreSQL
+- **ORM & Data Layer**: TypeORM (Pessimistic Locking, Migrations, Entity Repositories)
+- **Validation**: `class-validator`, `class-transformer`
+- **Testing & Quality**: Vitest, Supertest, Oxlint, Prettier
+
+---
+
+## 🏛️ System Design & Concurrency Strategy
+
+### Deadlock-Free Transfer Workflow
+When two users concurrently transfer money to each other (e.g., User A sends to User B while User B sends to User A), acquiring locks in arbitrary order can cause a database deadlock.
+
+To prevent this:
+1. The service evaluates both account IDs and sorts them deterministically:
+   $$\text{firstId} = \min(\text{senderId}, \text{receiverId}), \quad \text{secondId} = \max(\text{senderId}, \text{receiverId})$$
+2. Pessimistic write locks (`pessimistic_write`) are obtained strictly in ascending order.
+3. Balance checks, account deductions, additions, and transfer record updates execute atomically in the same database transaction.
+4. Any runtime error or insufficient balance immediately rolls back the transaction and marks the transfer status as `Failed`.
+
+---
+
+## 🔌 API Endpoints
+
+### 1. Accounts (`/account`)
+
+| Method | Endpoint | Description | Sample Body |
+| :--- | :--- | :--- | :--- |
+| `POST` | `/account` | Register a new wallet account | `{"phoneNumber": "01012345678", "balance": 100.00}` |
+| `PUT` | `/account/add-balance` | Deposit / top-up wallet balance | `{"phoneNumber": "01012345678", "amount": 50.00}` |
+| `DELETE` | `/account/:id` | Remove an account | _None_ |
+
+### 2. Transfers (`/transfer`)
+
+| Method | Endpoint | Description | Query / Sample Body |
+| :--- | :--- | :--- | :--- |
+| `POST` | `/transfer` | Execute peer-to-peer transfer | `{"senderPhone": "01012345678", "receiverPhone": "01087654321", "amount": 25.50}` |
+| `GET` | `/transfer` | Get paginated transfer history | `?page=1&limit=10` |
+
+---
+
+## ⚙️ Getting Started
+
+### Prerequisites
+- Node.js (v20+ recommended)
+- PostgreSQL database instance
+
+### 1. Clone & Install Dependencies
 ```bash
-$ npm install
+git clone <repository-url>
+cd e-wallet
+npm install
 ```
 
-## Compile and run the project
-
-```bash
-# development
-$ npm run start
-
-# watch mode
-$ npm run start:dev
-
-# production mode
-$ npm run start:prod
+### 2. Environment Configuration
+Create a `.env` file in the root directory:
+```env
+PORT=3000
+DB_HOST=localhost
+DB_PORT=5432
+DB_USER=your_postgres_user
+DB_PASSWORD=your_postgres_password
+DB_NAME=ewallet
 ```
 
-## Run tests
-
+### 3. Run Migrations
 ```bash
-# unit tests
-$ npm run test
-
-# e2e tests
-$ npm run test:e2e
-
-# test coverage
-$ npm run test:cov
+npm run migration:run
 ```
 
-## Deployment
-
-When you're ready to deploy your NestJS application to production, there are some key steps you can take to ensure it runs as efficiently as possible. Check out the [deployment documentation](https://docs.nestjs.com/deployment) for more information.
-
-If you are looking for a cloud-based platform to deploy your NestJS application, check out [Mau](https://mau.nestjs.com), our official platform for deploying NestJS applications on AWS. Mau makes deployment straightforward and fast, requiring just a few simple steps:
-
+### 4. Start the Application
 ```bash
-$ npm install -g @nestjs/mau
-$ mau deploy
+# Development mode with hot-reload
+npm run start:dev
+
+# Production mode
+npm run build
+npm run start:prod
 ```
 
-With Mau, you can deploy your application in just a few clicks, allowing you to focus on building features rather than managing infrastructure.
+### 5. Running Tests & Linter
+```bash
+# Unit & integration tests
+npm run test
 
-## Observability
+# End-to-end tests
+npm run test:e2e
 
-In production applications, observability is essential for understanding how your system behaves, detecting issues early, and maintaining reliable performance.
-
-[NestJS Observe](https://observe.nestjs.com) automatically instruments your NestJS application, giving you deep visibility into your system with minimal setup:
-
-- **Distributed tracing:** Follow requests across services and understand how they flow through your system.
-- **Waterfall analysis:** Visualize request execution and identify slow operations, bottlenecks, and unexpected delays.
-- **Performance analysis:** Analyze application performance in real time and quickly pinpoint areas that need optimization.
-- **Metrics:** Track key application and infrastructure metrics to understand system health and performance trends.
-- **Logging:** Centralize and correlate logs with traces and other telemetry to make debugging easier.
-- **Error tracking:** Detect errors quickly and investigate their root causes with the surrounding context.
-- **SLA monitoring:** Track service-level objectives and identify when your application is approaching or exceeding defined thresholds.
-- **Alarms and alerts:** Set up alerts for critical errors, performance degradation, SLA violations, and other anomalies so your team can react quickly.
-
-## Resources
-
-Check out a few resources that may come in handy when working with NestJS:
-
-- Visit the [NestJS Documentation](https://docs.nestjs.com) to learn more about the framework.
-- For questions and support, please visit our [Discord channel](https://discord.gg/G7Qnnhy).
-- To dive deeper and get more hands-on experience, check out our official video [courses](https://courses.nestjs.com/).
-- Deploy your application to AWS with the help of [NestJS Mau](https://mau.nestjs.com) in just a few clicks.
-- Auto-instrument your application with [NestJS Observer](https://observer.nestjs.com). Distributed tracing, metrics, and logging made easy. Error tracking and performance monitoring for your NestJS applications.
-- Visualize your application graph and interact with the NestJS application in real-time using [NestJS Devtools](https://devtools.nestjs.com).
-- Need help with your project (part-time to full-time)? Check out our official [enterprise support](https://enterprise.nestjs.com).
-- To stay in the loop and get updates, follow us on [X](https://x.com/nestframework) and [LinkedIn](https://linkedin.com/company/nestjs).
-- Looking for a job, or have a job to offer? Check out our official [Jobs board](https://jobs.nestjs.com).
-
-## Support
-
-Nest is an MIT-licensed open source project. It can grow thanks to the sponsors and support by the amazing backers. If you'd like to join them, please [read more here](https://docs.nestjs.com/support).
-
-## Stay in touch
-
-- Author - [Kamil Myśliwiec](https://twitter.com/kammysliwiec)
-- Website - [https://nestjs.com](https://nestjs.com/)
-- Twitter - [@nestframework](https://twitter.com/nestframework)
-
-## License
-
-Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).
+# Code style & linting
+npm run lint
+```
