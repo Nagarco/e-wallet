@@ -16,7 +16,7 @@ import { AddBalanceDto } from './dtos/add-balance.dto.js';
 export class AccountController {
   constructor(private readonly accountService: AccountService) {}
 
-  @Post('create')
+  @Post()
   async create(@Body() dto: CreateAccountDto) {
     return this.accountService.createAccount(dto);
   }

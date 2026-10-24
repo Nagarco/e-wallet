@@ -48,32 +48,49 @@ export class TransferService {
     await this.transferRepository.save(transfer);
 
     try {
-      return this.dataSource.transaction(async (manager: EntityManager) => {
-        const lockedSender = await manager.findOne(Account, {
-          where: { id: sender.id },
-          lock: { mode: 'pessimistic_write' },
-        });
+      const result = await this.dataSource.transaction(
+        async (manager: EntityManager) => {
+          const [firstId, secondId] =
+            sender.id < receiver.id
+              ? [sender.id, receiver.id]
+              : [receiver.id, sender.id];
 
-        const lockedReceiver = await manager.findOne(Account, {
-          where: { id: receiver.id },
-          lock: { mode: 'pessimistic_write' },
-        });
+          const firstLocked = await manager.findOne(Account, {
+            where: { id: firstId },
+            lock: { mode: 'pessimistic_write' },
+          });
 
-        if (Number(lockedSender!.balance) < amount)
-          throw new BadRequestException('Insufficient balance');
+          const secondLocked = await manager.findOne(Account, {
+            where: { id: secondId },
+            lock: { mode: 'pessimistic_write' },
+          });
 
-        lockedSender!.balance = Number(lockedSender!.balance) - amount;
-        lockedReceiver!.balance = Number(lockedReceiver!.balance) + amount;
+          const lockedSender = firstId === sender.id ? firstLocked : secondLocked;
+          const lockedReceiver =
+            firstId === sender.id ? secondLocked : firstLocked;
 
-        await manager.save(Account, lockedSender!);
-        await manager.save(Account, lockedReceiver!);
+          if (!lockedSender || !lockedReceiver) {
+            throw new NotFoundException('Account was deleted during transfer');
+          }
 
-        transfer.status = TransferStatus.Fulfilled;
+          if (Number(lockedSender.balance) < amount)
+            throw new BadRequestException('Insufficient balance');
 
-        return this.transferRepository.save(transfer);
-      });
+          lockedSender.balance = Number(lockedSender.balance) - amount;
+          lockedReceiver.balance = Number(lockedReceiver.balance) + amount;
+
+          await manager.save(Account, lockedSender);
+          await manager.save(Account, lockedReceiver);
+
+          transfer.status = TransferStatus.Fulfilled;
+
+          return manager.save(Transfer, transfer);
+        },
+      );
+
+      return result;
     } catch (error) {
-      transfer.status = TransferStatus.FAILED;
+      transfer.status = TransferStatus.Failed;
       await this.transferRepository.save(transfer);
       throw error;
     }

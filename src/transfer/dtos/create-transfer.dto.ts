@@ -1,4 +1,4 @@
-import { IsNumber, IsPhoneNumber, IsPositive, IsUUID } from 'class-validator';
+import { IsNumber, IsPhoneNumber, IsPositive } from 'class-validator';
 
 export class CreateTransferDto {
   @IsPhoneNumber()

@@ -29,6 +29,18 @@ export class AccountService {
     return this.accountRepository.save(acc);
   }
 
+  async getAccountByPhone(phoneNumber: string): Promise<Account> {
+    const account = await this.accountRepository.findOne({
+      where: { phoneNumber },
+    });
+    if (!account) {
+      throw new NotFoundException(
+        `Account with phone number ${phoneNumber} not found`,
+      );
+    }
+    return account;
+  }
+
   async addBalance(dto: AddBalanceDto) {
     const result = await this.accountRepository.increment(
       { phoneNumber: dto.phoneNumber },
@@ -36,18 +48,21 @@ export class AccountService {
       dto.amount,
     );
 
-    if (result.affected === 0)
+    if (result.affected === 0) {
       throw new NotFoundException(
         `Account with phone number ${dto.phoneNumber} does not exist`,
       );
+    }
+
+    return this.getAccountByPhone(dto.phoneNumber);
   }
 
   async deleteAccount(id: string) {
     const result = await this.accountRepository.delete(id);
-    
+
     if (result.affected === 0)
       throw new NotFoundException(
         `Account with ID ${id} does not exist`,
-      );
+    );
   }
 }

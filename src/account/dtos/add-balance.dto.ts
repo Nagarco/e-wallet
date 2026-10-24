@@ -1,4 +1,4 @@
-import { IsNumber, IsPhoneNumber, IsPositive } from 'class-validator';
+import { IsNumber, IsPhoneNumber, IsPositive, Max } from 'class-validator';
 
 export class AddBalanceDto {
   @IsPhoneNumber()
