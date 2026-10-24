@@ -5,9 +5,11 @@ import {
   HttpCode,
   HttpStatus,
   Post,
+  Query,
 } from '@nestjs/common';
 import { TransferService } from './transfer.service.js';
 import { CreateTransferDto } from './dtos/create-transfer.dto.js';
+import { PaginationDto } from './dtos/pagination.dto.js';
 
 @Controller('transfer')
 export class TransferController {
@@ -28,7 +30,7 @@ export class TransferController {
   }
 
   @Get()
-  async getAll() {
-    return this.transferService.getAllTransfers();
+  async getAll(@Query() dto: PaginationDto) {
+    return this.transferService.getAllTransfers(dto);
   }
 }

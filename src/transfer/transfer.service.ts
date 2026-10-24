@@ -9,6 +9,7 @@ import { DataSource, EntityManager, Repository } from 'typeorm';
 import { CreateTransferDto } from './dtos/create-transfer.dto.js';
 import { Account } from '../account/entities/account.entity.js';
 import { TransferStatus } from './enums/transfer-status.enum.js';
+import { PaginationDto } from './dtos/pagination.dto.js';
 
 @Injectable()
 export class TransferService {
@@ -78,8 +79,12 @@ export class TransferService {
     }
   }
 
-  async getAllTransfers() {
-    return this.transferRepository.find({
+  async getAllTransfers(dto: PaginationDto) {
+    const page = dto.page ?? 1;
+    const limit = dto.limit ?? 10;
+    const skip = (page - 1) * limit;
+
+    const [data, total] = await this.transferRepository.findAndCount({
       select: {
         id: true,
         amount: true,
@@ -90,6 +95,23 @@ export class TransferService {
         sender: true,
         receiver: true,
       },
+      order: {
+        createdAt: 'DESC',
+      },
+      skip,
+      take: limit,
     });
+
+    return {
+      data,
+      meta: {
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit),
+        hasNextPage: page * limit < total,
+        hasPrevPage: page > 1,
+      },
+    };
   }
 }
