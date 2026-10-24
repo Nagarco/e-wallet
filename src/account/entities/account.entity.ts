@@ -1,14 +1,16 @@
 import {
+  Check,
   Column,
   CreateDateColumn,
   Entity,
   OneToMany,
   PrimaryGeneratedColumn,
 } from 'typeorm';
-import { Transfer } from '../../transfer/entities/transfer.entity.js';
 import type { Relation } from 'typeorm';
+import { Transfer } from '../../transfer/entities/transfer.entity.js';
 
 @Entity()
+@Check(`"balance" >= 0`)
 export class Account {
   @PrimaryGeneratedColumn('uuid')
   id: string;
